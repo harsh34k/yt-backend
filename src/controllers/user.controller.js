@@ -53,11 +53,12 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
+    console.log("files is this ", req.files)
     // const coverImageLocalPath = req.files?.coverImage[0]?.path;
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-        console.log("files", req.files);
-        console.log("coverImage", req.files.coverImage);
+        // console.log("files", req.files);
+        // console.log("coverImage", req.files.coverImage);
         coverImageLocalPath = req.files.coverImage[0].path
     }
 
@@ -103,6 +104,7 @@ const loginUser = asyncHandler(async (req, res) => {
     //send cookie
 
     const { email, username, password } = req.body
+    console.log(username, email);
 
     if (!username && !email) {
         throw new ApiError(400, "username or email is required")
@@ -151,8 +153,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1
             }
         },
         {
@@ -229,6 +231,9 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     // check current password
     //if current password is correct then update the existing password
     const { currentPassword, newPassword } = req.body;
+    if (currentPassword === newPassword) {
+        throw new ApiError(400, "New Password cannot be same as Current Password");
+    }
     const user = await User.findById(req.user._id).select('+password');
     if (!user) {
         throw new ApiError(401, "User not found")
@@ -267,7 +272,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.file?.path;
+    const avatarLocalPath = req.files?.path;
     if (!avatarLocalPath) {
         throw new ApiError(400, "No image provided");
     }
@@ -289,7 +294,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const coverImageLocalPath = req.file?.path;
+    const coverImageLocalPath = req.files?.path;
     if (!coverImageLocalPath) {
         throw new ApiError(400, "No image provided");
     }
@@ -311,14 +316,18 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 })
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-    const { username } = req.params
+    let { username } = req.params
+    if (username.startsWith(':')) {
+        username = username.slice(1);
+    }
     if (!username?.trim()) {
         throw new ApiError(400, "Username is required")
     }
     const channel = await User.aggregate([
         {
             $match: {
-                username: username.toLowerCase()
+                username: username.toLowerCase(),
+
             }
         },
         {
@@ -341,10 +350,12 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             $addFields: {
                 subscribersCount: { $size: "$subscriber" },
                 channelsSubscribedToCount: { $size: "$subscribedTo" },
-                $cond: {
-                    if: { $in: [req.user?._id, "$subscribers.subscriber"] },
-                    then: true,
-                    else: false
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscriber.subscriber"] },
+                        then: true,
+                        else: false
+                    }
                 }
             }
         },

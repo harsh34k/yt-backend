@@ -41,6 +41,21 @@ const deleteFromCloudinary = async (publicId) => {
     }
 };
 
+const deleteVideoFromCloudinary = async (publicId) => {
+    try {
+        // Delete the image from Cloudinary
+        const result = await cloudinary.uploader.destroy(publicId, { resource_type: "video" });
+        if (result.result === 'ok') {
+            console.log(`Deleted video with public ID: ${publicId} successfully`);
+        } else {
+            console.error(`Failed to delete video with public ID: ${publicId}`);
+        }
+    } catch (error) {
+        console.error('Error deleting video from Cloudinary:', error.message);
+        throw error; // Throw the error for handling at a higher level
+    }
+};
+
 const extractPublicId = (imageUrl) => {
     const parts = imageUrl.split('/');
     const publicIdWithExtension = parts[parts.length - 1];
@@ -50,4 +65,4 @@ const extractPublicId = (imageUrl) => {
 
 
 
-export { uploadOnCloudinary, deleteFromCloudinary, extractPublicId }
+export { uploadOnCloudinary, deleteFromCloudinary, deleteVideoFromCloudinary, extractPublicId }
