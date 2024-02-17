@@ -37,6 +37,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const { fullName, email, username, password } = req.body
     console.log("email: ", email);
+    console.log(req.files);
 
     if (
         [fullName, email, username, password].some((field) => field?.trim() === "")
@@ -52,14 +53,14 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "User with email or username already exists")
     }
 
-    const avatarLocalPath = req.files?.avatar[0]?.path;
     console.log("files is this ", req.files)
+    const avatarLocalPath = req.files?.avatar[0]?.path;
     // const coverImageLocalPath = req.files?.coverImage[0]?.path;
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
         // console.log("files", req.files);
         // console.log("coverImage", req.files.coverImage);
-        coverImageLocalPath = req.files.coverImage[0].path
+        coverImageLocalPath = req.files?.coverImage[0]?.path
     }
 
 
@@ -231,6 +232,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     // check current password
     //if current password is correct then update the existing password
     const { currentPassword, newPassword } = req.body;
+    console.log(currentPassword, newPassword);
     if (currentPassword === newPassword) {
         throw new ApiError(400, "New Password cannot be same as Current Password");
     }
@@ -272,7 +274,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.files?.path;
+    const avatarLocalPath = req.files?.avatar[0]?.path;
     if (!avatarLocalPath) {
         throw new ApiError(400, "No image provided");
     }
@@ -294,7 +296,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const coverImageLocalPath = req.files?.path;
+    const coverImageLocalPath = req.files?.coverImage[0]?.path;
     if (!coverImageLocalPath) {
         throw new ApiError(400, "No image provided");
     }

@@ -4,10 +4,12 @@ import { User } from "../models/user.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
+import { checkOwner } from "../utils/checkOwner.js"
 
 const createTweet = asyncHandler(async (req, res) => {
     //TODO: create tweet
     const { tweetContent } = req.body;
+
     const tweet = await Tweet.create({
         content: tweetContent,
         owner: req.user._id
@@ -15,7 +17,7 @@ const createTweet = asyncHandler(async (req, res) => {
     if (!tweet) {
         throw new ApiError(500, "Unable to create a tweet")
     }
-    res.status(201).json(new ApiResponse(true, tweet, "Tweet Created Successfully!"))
+    return res.status(201).json(new ApiResponse(true, tweet, "Tweet Created Successfully!"))
 })
 
 const getUserTweets = asyncHandler(async (req, res) => {
@@ -28,11 +30,30 @@ const getUserTweets = asyncHandler(async (req, res) => {
     if (!userId) {
         throw new ApiError("Please Provide tweet and your ID", 400);
     }
-    const allTweets = await Tweet.find({ owner: userId });
-    if (!allTweets) {
-        throw new ApiError(404, "No Tweets Found For this User");
+    // const allTweets = await Tweet.find({ owner: userId });
+    const allTweets = await Tweet.aggregate([
+        {
+            $match: { owner: new mongoose.Types.ObjectId(userId) }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [{
+                    $project: {
+                        username: 1,
+                        avatar: 1
+                    }
+                }]
+            }
+        },
+    ])
+    if (!allTweets.length) {
+        return res.json(new ApiResponse(200, {}, "No Tweets Found"));
     }
-    res.json(new ApiResponse(true, allTweets, "Fethed all tweets succesfully"));
+    return res.json(new ApiResponse(200, allTweets, "Fethed all tweets succesfully"));
 })
 
 const updateTweet = asyncHandler(async (req, res) => {
@@ -42,6 +63,9 @@ const updateTweet = asyncHandler(async (req, res) => {
     if (tweetId.startsWith(':')) {
         tweetId = tweetId.slice(1);
     }
+    const tweet = await Tweet.findById(tweetId).select("owner");
+    checkOwner(tweet, req)
+
     if (!tweetId || !tweetContent) {
         throw new ApiError(400, "Invalid data provided");
     }
@@ -59,7 +83,7 @@ const updateTweet = asyncHandler(async (req, res) => {
     } catch (error) {
         throw new ApiError(500, "An error occured while updating tweet", error)
     }
-    res.status(200).json(new ApiResponse(200, updatedTweet, 'Updated Tweet Successfully'));
+    return res.status(200).json(new ApiResponse(200, updatedTweet, 'Updated Tweet Successfully'));
 
 })
 
@@ -72,6 +96,9 @@ const deleteTweet = asyncHandler(async (req, res) => {
     if (!tweetId) {
         throw new ApiError(404, "tweet id not found")
     }
+    const tweet = await Tweet.findById(tweetId).select("owner");
+    checkOwner(tweet, req)
+
     try {
         const deletedTweet = await Tweet.findByIdAndDelete(tweetId)
         if (!deletedTweet) {
@@ -81,7 +108,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
     } catch (error) {
         throw new ApiError(500, "Error occured while deleting tweet")
     }
-    res.json(new ApiResponse(200, null, 'Deleted The Tweet'));
+    return res.json(new ApiResponse(200, null, 'Deleted The Tweet'));
 })
 
 export {
