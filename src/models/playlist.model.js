@@ -16,6 +16,10 @@ const playlistSchema = new Schema({
     playlistName: {
         type: String,
         required: true
+    },
+    isPublic: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true
